@@ -1,11 +1,24 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
+	"io/ioutil"
+	"os"
 )
 
 func main() {
+	// 清理image 目录
+	dirList, err := ioutil.ReadDir("./images/")
+	if err != nil {
+		fmt.Println("read images dir error")
+	}
+	for _, v := range dirList {
+		if v.Name() != ".gitignore" {
+			_ = os.Remove("./images/" + v.Name())
+		}
+	}
 	//创建一个随机地图；
 	randomMap := NewPointMap(100)
 	//设置图像的内容与地图大小一致；

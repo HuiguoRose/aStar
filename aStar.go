@@ -100,7 +100,8 @@ func (a *AStar) RunAndSaveImage(img *image.NRGBA) {
 			a.BuildPath(p, img, startTime)
 			return
 		}
-		a.OpenSet = append(a.OpenSet[:index], a.OpenSet[index+1:]...)
+		a.OpenSet = DeletePointSliceIndex(a.OpenSet, index)
+		//a.OpenSet= append(a.OpenSet[:index], a.OpenSet[index+1:]...)
 		a.CloseSet = append(a.CloseSet, p)
 		//# Process all neighbors
 		x := p.X
@@ -136,7 +137,7 @@ func (a *AStar) SelectPointInOpenList() int {
 func (a *AStar) BuildPath(p *Point, img *image.NRGBA, startTime int64) {
 	var path []*Point
 	for {
-		path = InsertStringSliceCopy(path, []*Point{p}, 0)
+		path = InsertPointSliceCopy(path, []*Point{p}, 0)
 		if a.IsStartPoint(p) {
 			break
 		} else {
@@ -154,7 +155,7 @@ func (a *AStar) BuildPath(p *Point, img *image.NRGBA, startTime int64) {
 //将当前状态保存到图片中，图片以当前时间命名。
 func (a *AStar) SaveImage(img *image.NRGBA) {
 	millis := time.Now().UnixNano()
-	filename := fmt.Sprintf("%v.png", millis)
+	filename := fmt.Sprintf("./images/%v.png", millis)
 	imgFile, _ := os.Create(filename)
 	defer imgFile.Close()
 	err := png.Encode(imgFile, img)
