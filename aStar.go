@@ -86,8 +86,9 @@ func (a *AStar) IsEndPoint(p *Point) bool {
 	return p.X == a.PointMap.Size-1 && p.Y == a.PointMap.Size-1
 }
 
-func (a *AStar) RunAndSaveImage(img *image.NRGBA) {
+func (a *AStar) RunAndSaveImage(img *image.NRGBA, anim *gif.GIF, outputImg, outputGif bool) {
 	startTime := time.Now().UnixNano()
+	fmt.Printf("===== start algorithm \n")
 	startPoint := NewPoint(0, 0) //起点
 	startPoint.Cost = 0
 	a.OpenSet = append(a.OpenSet, startPoint) //起点添加到开启集合
@@ -99,9 +100,14 @@ func (a *AStar) RunAndSaveImage(img *image.NRGBA) {
 		}
 		p := a.OpenSet[index]
 		img.Set(p.X, p.Y, color.RGBA{R: uint8(0), G: uint8(191), B: uint8(191), A: uint8(255)})
-		a.SaveImage(img)
+		if outputImg {
+			a.SaveImage(img)
+		}
+		if outputGif && !outputImg {
+			a.MakeGifFrame(img, anim)
+		}
 		if a.IsEndPoint(p) { //如果是终点画出所有最优点的坐标
-			a.BuildPath(p, img, startTime)
+			a.BuildPath(p, img, startTime, anim, outputImg, outputGif)
 			return
 		}
 		a.OpenSet = DeletePointSliceIndex(a.OpenSet, index)
@@ -138,7 +144,7 @@ func (a *AStar) SelectPointInOpenList() int {
 }
 
 //从终点往回沿着parent构造结果路径。然后从起点开始绘制结果，结果使用绿色方块，每次绘制一步便保存一个图片。
-func (a *AStar) BuildPath(p *Point, img *image.NRGBA, startTime int64) {
+func (a *AStar) BuildPath(p *Point, img *image.NRGBA, startTime int64, anim *gif.GIF, outputImg, outputGif bool) {
 	var path []*Point
 	for {
 		path = InsertPointSliceCopy(path, []*Point{p}, 0)
@@ -150,10 +156,23 @@ func (a *AStar) BuildPath(p *Point, img *image.NRGBA, startTime int64) {
 	}
 	for _, p := range path {
 		img.Set(p.X, p.Y, color.RGBA{R: uint8(0), G: uint8(255), B: uint8(0), A: uint8(255)})
-		a.SaveImage(img)
+		if outputImg {
+			a.SaveImage(img)
+		}
+		if outputGif && !outputImg {
+			a.MakeGifFrame(img, anim)
+		}
 	}
 	endTime := time.Now().UnixNano()
 	fmt.Printf("===== Algorithm finish in %d ms\n", int(endTime-startTime)/1e6)
+}
+
+// 直接生成GIF单帧图片
+func (a *AStar) MakeGifFrame(img image.Image, anim *gif.GIF) {
+	plt := image.NewPaletted(image.Rect(0, 0, a.PointMap.Size, a.PointMap.Size), palette.Plan9)
+	draw.FloydSteinberg.Draw(plt, img.Bounds(), img, image.ZP)
+	anim.Image = append(anim.Image, plt)
+	anim.Delay = append(anim.Delay, 0)
 }
 
 //将当前状态保存到图片中，图片以当前时间命名。
@@ -188,6 +207,7 @@ func (a *AStar) ProcessPoint(x, y int, parent *Point) {
 
 func (a *AStar) BuildGif(fileName string) {
 	fmt.Printf("===== building gif file Please wait\n")
+	startTime := time.Now().UnixNano()
 	anim := gif.GIF{}
 	for _, file := range a.imageList {
 		f, err := os.Open(file)
@@ -196,14 +216,19 @@ func (a *AStar) BuildGif(fileName string) {
 			return
 		}
 		img, _, _ := image.Decode(f)
-		paletted := image.NewPaletted(img.Bounds(), palette.Plan9)
-		draw.FloydSteinberg.Draw(paletted, img.Bounds(), img, image.ZP)
-
-		anim.Image = append(anim.Image, paletted)
+		f.Close()
+		plt := image.NewPaletted(img.Bounds(), palette.Plan9)
+		draw.FloydSteinberg.Draw(plt, img.Bounds(), img, image.ZP)
+		anim.Image = append(anim.Image, plt)
 		anim.Delay = append(anim.Delay, 0)
 	}
-	f, _ := os.Create(fmt.Sprintf("%v.gif", fileName))
+	f, err := os.Create(fmt.Sprintf("%v", fileName))
+	if err != nil {
+		fmt.Printf("%s\n", err.Error())
+		return
+	}
 	defer f.Close()
 	_ = gif.EncodeAll(f, &anim)
-	fmt.Printf("===== building gif file success\n")
+	endTime := time.Now().UnixNano()
+	fmt.Printf("===== building gif file success in %d ms\n", int(endTime-startTime)/1e6)
 }
