@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/color/palette"
+	"image/draw"
+	"image/gif"
 	"image/png"
 	"math"
 	"os"
@@ -11,9 +14,10 @@ import (
 )
 
 type AStar struct {
-	PointMap *PointMap
-	OpenSet  []*Point
-	CloseSet []*Point
+	PointMap  *PointMap
+	OpenSet   []*Point
+	CloseSet  []*Point
+	imageList []string
 }
 
 func NewAStar(pointMap *PointMap) *AStar {
@@ -154,8 +158,8 @@ func (a *AStar) BuildPath(p *Point, img *image.NRGBA, startTime int64) {
 
 //将当前状态保存到图片中，图片以当前时间命名。
 func (a *AStar) SaveImage(img *image.NRGBA) {
-	millis := time.Now().UnixNano()
-	filename := fmt.Sprintf("./images/%v.png", millis)
+	filename := fmt.Sprintf("./images/%v.png", time.Now().UnixNano())
+	a.imageList = append(a.imageList, filename)
 	imgFile, _ := os.Create(filename)
 	defer imgFile.Close()
 	err := png.Encode(imgFile, img)
@@ -180,4 +184,26 @@ func (a *AStar) ProcessPoint(x, y int, parent *Point) {
 		p.Cost = a.TotalCost(p)
 		a.OpenSet = append(a.OpenSet, p) //将临点添加到open_set
 	}
+}
+
+func (a *AStar) BuildGif(fileName string) {
+	fmt.Printf("===== building gif file Please wait\n")
+	anim := gif.GIF{}
+	for _, file := range a.imageList {
+		f, err := os.Open(file)
+		if err != nil {
+			fmt.Printf("Could not open file %s. Error: %s\n", file, err)
+			return
+		}
+		img, _, _ := image.Decode(f)
+		paletted := image.NewPaletted(img.Bounds(), palette.Plan9)
+		draw.FloydSteinberg.Draw(paletted, img.Bounds(), img, image.ZP)
+
+		anim.Image = append(anim.Image, paletted)
+		anim.Delay = append(anim.Delay, 0)
+	}
+	f, _ := os.Create(fmt.Sprintf("%v.gif", fileName))
+	defer f.Close()
+	_ = gif.EncodeAll(f, &anim)
+	fmt.Printf("===== building gif file success\n")
 }

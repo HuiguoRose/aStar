@@ -1,14 +1,17 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image"
 	"image/color"
 	"io/ioutil"
 	"os"
 )
-
-func main() {
+var output string
+func init(){
+	flag.StringVar(&output, "o", "", "生成gif的文件名")
+	flag.Parse()
 	// 清理image 目录
 	dirList, err := ioutil.ReadDir("./images/")
 	if err != nil {
@@ -19,6 +22,9 @@ func main() {
 			_ = os.Remove("./images/" + v.Name())
 		}
 	}
+}
+
+func main() {
 	//创建一个随机地图；
 	randomMap := NewPointMap(100)
 	//设置图像的内容与地图大小一致；
@@ -44,4 +50,9 @@ func main() {
 	aStar := NewAStar(randomMap)
 	aStar.SaveImage(img)
 	aStar.RunAndSaveImage(img)
+	//制作GIF
+	if output!=""{
+		aStar.BuildGif(output)
+	}
+
 }
